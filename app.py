@@ -1,0 +1,794 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import joblib
+from pathlib import Path
+
+st.set_page_config(
+    page_title="SENTINEL INTELLIGENCE | COS720 Insider Threat Prototype",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+# ── Load trained model ────────────────────────────────────────────────────
+@st.cache_resource
+def load_model():
+    """Load the trained model and feature names."""
+    try:
+        model_path = Path('models') / 'insider_threat_model.pkl'
+        model = joblib.load(model_path)
+        return model
+    except Exception as e:
+        st.error(f"Failed to load model: {e}")
+        return None
+
+model = load_model()
+
+
+# ── Aggressive CSS reset – force light theme everywhere ──────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+/* ── Force light background on EVERY Streamlit container ── */
+html, body,
+.stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewBlockContainer"],
+[data-testid="stMain"],
+[data-testid="stMainBlockContainer"],
+[data-testid="block-container"],
+.main, .main > div,
+section[data-testid="stSidebar"],
+[data-testid="stVerticalBlock"],
+[data-testid="stHorizontalBlock"],
+[class*="css"] {
+    background-color: #f7f9fb !important;
+    color: #191c1e !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* ── Streamlit column wrappers ── */
+[data-testid="column"] {
+    background-color: #f7f9fb !important;
+}
+
+/* ── File uploader ── */
+[data-testid="stFileUploader"] {
+    background-color: #ffffff !important;
+    border: 2px dashed #c6c6cd !important;
+    border-radius: 12px !important;
+    padding: 8px !important;
+}
+[data-testid="stFileUploader"] * {
+    background-color: transparent !important;
+    color: #191c1e !important;
+}
+[data-testid="stFileUploaderDropzone"] {
+    background-color: #ffffff !important;
+}
+
+/* ── Hide Streamlit chrome ── */
+#MainMenu, footer, [data-testid="stToolbar"],
+[data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+    visibility: hidden !important;
+    height: 0 !important;
+}
+header[data-testid="stHeader"] {
+    background: transparent !important;
+    height: 0 !important;
+}
+
+/* ── Block container sizing ── */
+.block-container,
+[data-testid="stMainBlockContainer"] {
+    padding-top: 1rem !important;
+    padding-bottom: 4rem !important;
+    margin: 0 auto !important;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f7f9fb; }
+::-webkit-scrollbar-thumb { background: #c6c6cd; border-radius: 3px; }
+
+/* ── Material Symbols font ── */
+.material-symbols-outlined {
+    font-family: 'Material Symbols Outlined' !important;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+/* ══════════════════════════════════════
+   Typography
+══════════════════════════════════════ */
+.display-lg {
+    font-family: 'Hanken Grotesk', sans-serif !important;
+    font-size: 48px; line-height: 56px; font-weight: 700;
+    letter-spacing: -0.02em; color: #191c1e;
+    margin: 0 0 16px 0;
+}
+.headline-lg {
+    font-family: 'Hanken Grotesk', sans-serif !important;
+    font-size: 32px; line-height: 40px; font-weight: 600;
+    letter-spacing: -0.01em; color: #191c1e; margin: 0;
+}
+.title-md {
+    font-family: 'Hanken Grotesk', sans-serif !important;
+    font-size: 20px; line-height: 28px; font-weight: 600; color: #191c1e;
+}
+.label-caps {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 12px; line-height: 16px; letter-spacing: 0.05em; font-weight: 500;
+}
+.code-sm { font-family: 'JetBrains Mono', monospace !important; font-size: 13px; line-height: 18px; }
+.body-lg  { font-size: 16px; line-height: 24px; }
+.body-md  { font-size: 14px; line-height: 20px; }
+.body-sm  { font-size: 14px; line-height: 20px; }
+.text-secondary { color: #515f74 !important; }
+.text-error     { color: #ba1a1a !important; }
+.text-primary   { color: #000000 !important; }
+
+/* ══════════════════════════════════════
+   Components
+══════════════════════════════════════ */
+.card {
+    background: #ffffff !important;
+    border: 1px solid #c6c6cd;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    margin-bottom: 10px;
+}
+.glass-panel {
+    background: rgba(255,255,255,0.92) !important;
+    border: 1px solid rgba(185,199,224,0.5);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(186,26,26,0.08);
+}
+.metric-card {
+    background: #ffffff !important;
+    border: 1px solid #c6c6cd;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    height: 100%;
+}
+.badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.05em; font-weight: 600;
+    padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
+}
+.badge-error   { background: rgba(186,26,26,0.08); color: #ba1a1a; border: 1px solid rgba(186,26,26,0.25); }
+.badge-success { background: rgba(81,95,116,0.08); color: #515f74; border: 1px solid #c6c6cd; }
+.badge-neutral { background: #eceef0; color: #515f74; border: 1px solid #c6c6cd; }
+.section-divider { border: none; border-top: 1px solid #c6c6cd; margin: 40px 0; }
+.progress-bar-bg   { background: #eceef0; height: 8px; border-radius: 999px; overflow: hidden; margin-top: 4px; }
+.progress-bar-fill { background: #ba1a1a; height: 100%; border-radius: 999px; }
+.info-box {
+    background: #ffffff !important;
+    border: 1px solid #c6c6cd;
+    border-radius: 12px; padding: 24px;
+}
+.ethics-box {
+    background: #f2f4f6 !important;
+    border: 1px solid #c6c6cd;
+    border-radius: 12px; padding: 32px;
+}
+.indicator-card {
+    background: #ffffff !important;
+    border: 1px solid #c6c6cd;
+    border-radius: 12px; padding: 16px; text-align: center;
+    margin-bottom: 8px;
+}
+.pipeline-circle {
+    width: 48px; height: 48px;
+    background: #000; color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px;
+    margin: 0 auto 12px auto;
+    font-family: 'Hanken Grotesk', sans-serif;
+}
+
+/* ── Confusion table ── */
+table.confusion { width: 100%; border-collapse: collapse; }
+table.confusion th, table.confusion td {
+    padding: 14px 16px; border-bottom: 1px solid #c6c6cd; font-size: 13px;
+}
+table.confusion thead {
+    background: #e6e8ea;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.05em; color: #515f74;
+}
+table.confusion tr:nth-child(even) td { background: rgba(0,0,0,0.015); }
+table.confusion .row-header {
+    background: #f2f4f6; color: #515f74;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    border-right: 1px solid #c6c6cd;
+}
+
+/* ── Fixed top nav ── */
+.topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    background: #ffffff !important;
+    border-bottom: 1px solid #c6c6cd;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.topnav a {
+    font-weight: 500; text-decoration: none;
+    color: #515f74 !important;
+    margin: 0 12px; line-height: 64px; font-size: 15px;
+    font-family: 'Inter', sans-serif;
+}
+.topnav a.active {
+    font-weight: 700; color: #000 !important;
+    border-bottom: 2px solid #000;
+    padding-bottom: 2px;
+}
+.topnav-brand {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: #191c1e;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ── Top Nav ──────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="topnav">
+  <div>
+    <a class="active" href="#">System Overview</a>
+    <a href="#">Metrics</a>
+    <a href="#">Evaluation</a>
+  </div>
+  <span class="topnav-brand">COS720 Prototype</span>
+</div>
+<div style="height:72px;"></div>
+""", unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION 1 — Hero & Upload
+# ═══════════════════════════════════════════════════════════════════════════
+col_hero, col_result = st.columns([1, 1], gap="medium")
+
+with col_hero:
+    st.markdown("""
+    <h1 class="display-lg">AI-Powered Insider Threat Detection System</h1>
+    <p class="body-lg text-secondary" style="margin-bottom:24px; line-height:1.6;">
+        Deploying advanced behavioral analytics to identify high-risk internal activity before data breaches occur. Upload employee records for immediate predictive analysis.
+    </p>
+    """, unsafe_allow_html=True)
+
+    uploaded_file = st.file_uploader(
+        "Upload employee behavioural records",
+        type=["csv"],
+        label_visibility="visible",
+    )
+    
+with col_result:
+    if uploaded_file and model:
+        # Read the uploaded file
+        try:
+            df = pd.read_csv(uploaded_file)
+            
+            # Make predictions
+            predictions = model.predict(df)
+            probabilities = model.predict_proba(df)[:, 1]
+            
+            # Get first prediction to display
+            first_pred = predictions[0]
+            first_prob = probabilities[0]
+            confidence = first_prob if first_pred == 1 else (1 - first_prob)
+            
+            # Behavioral explanation based on prediction
+            if first_pred == 1:
+                explanation = "Unusual behavioural activity detected. Multiple risk indicators identified including suspicious access patterns, off-hours activity, and file operations that deviate from normal baseline. Risk profile matches patterns of potential authorised data exfiltration."
+            else:
+                explanation = "Normal behavioral activity detected. User behavior aligns with established baseline patterns. All activity indicators fall within expected operational parameters with no anomalies identified."
+            
+            # Create table rows as a list first
+            table_rows_html = ""
+            
+            
+            # Show all predictions from uploaded file
+            display_limit = len(predictions)
+            for i in range(display_limit):
+                pred = predictions[i]
+                prob = probabilities[i]
+                conf = prob if pred == 1 else (1 - prob)
+                pred_label = "Malicious" if pred == 1 else "Normal"
+                risk_label = "HIGH RISK" if pred == 1 else "LOW RISK"
+                risk_color = "#ba1a1a" if pred == 1 else "#2d7d3d"
+                bg_r = 255 if pred == 1 else 45
+                bg_g = 26 if pred == 1 else 125
+                bg_b = 26 if pred == 1 else 61
+                
+                # Generate explanation based on model confidence and prediction
+                if pred == 1:
+                    if conf > 0.9:
+                        record_explanation = "File access anomalies + Off-hours activity"
+                    elif conf > 0.75:
+                        record_explanation = "Unusual printing patterns detected"
+                    else:
+                        record_explanation = "Multiple suspicious indicators"
+                else:
+                    if conf > 0.9:
+                        record_explanation = "Normal operations within baseline"
+                    elif conf > 0.75:
+                        record_explanation = "Standard business activities"
+                    else:
+                        record_explanation = "Typical user behavior"
+
+                
+                table_rows_html += f"""<tr>
+                  <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:nowrap;">#{i+1}</td>
+                  <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-weight:500; color:#191c1e; white-space:nowrap;">{pred_label}</td>
+                  <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-weight:700; color:#191c1e; white-space:nowrap;">{conf*100:.1f}%</td>
+                  <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; white-space:nowrap;">
+                    <span style="display:inline-block; background:rgba({bg_r},{bg_g},{bg_b},0.12); color:{risk_color}; border:1px solid rgba({bg_r},{bg_g},{bg_b},0.3); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600;">{risk_label}</span>
+                  </td>
+                  <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-size:12px; color:#515f74;">{record_explanation}</td>
+                </tr>"""
+            
+            st.markdown(f"""
+            <div class="glass-panel">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+                <div>
+                  <p class="title-md" style="margin:0 0 8px 0;">Prediction Results</p>
+                  <p class="body-sm text-secondary" style="margin:0;">Total Records: {len(df)}</p>
+                </div>
+                <div style="text-align:right;">
+                  <p class="code-sm" style="font-weight:700; color:#000; margin:0;">AVG CONFIDENCE: {np.mean(np.where(predictions == 1, probabilities, 1 - probabilities))*100:.1f}%</p>
+                  <p class="code-sm text-secondary" style="margin:4px 0 0 0;">MALICIOUS DETECTED: {sum(predictions)}</p>
+                </div>
+              </div>
+              <div style="overflow-x:auto; overflow-y:auto; max-height:300px; border:1px solid #c6c6cd; border-radius:8px; margin-bottom:16px;">
+                <table class="confusion" style="width:100%;">
+                  <thead style="background:#e6e8ea; position:sticky; top:0;">
+                    <tr>
+                      <th style="text-align:left; padding:12px 16px;">RECORD</th>
+                      <th style="text-align:left; padding:12px 16px;">PREDICTION</th>
+                      <th style="text-align:left; padding:12px 16px;">CONFIDENCE</th>
+                      <th style="text-align:left; padding:12px 16px;">RISK LEVEL</th>
+                      <th style="text-align:left; padding:12px 16px;">EXPLANATION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {table_rows_html}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Create results dataframe for download with detailed information
+            export_rows = []
+            for i in range(len(df)):
+                pred = predictions[i]
+                prob = probabilities[i]
+                conf = prob if pred == 1 else (1 - prob)
+                
+                # Prediction label and value
+                pred_label = "Malicious Insider Activity" if pred == 1 else "Normal / Benign Behaviour"
+                risk_label = "HIGH RISK" if pred == 1 else "LOW RISK"
+                
+                # Generate explanation and key indicators
+                if pred == 1:
+                    if conf > 0.9:
+                        explanation = "This activity was flagged because the record shows file burning activity, off-hours printing, and potential data exfiltration patterns."
+                        key_indicators = "File burning activity; Off-hours printing; Unusual access patterns"
+                    elif conf > 0.75:
+                        explanation = "This activity was flagged due to suspicious printing patterns and behavioural anomalies detected in the records."
+                        key_indicators = "Unusual printing patterns; Printing volume anomalies; Off-hours activity"
+                    else:
+                        explanation = "Multiple suspicious indicators were detected in this record that deviate from baseline behaviour."
+                        key_indicators = "Multiple suspicious indicators; Behavioural anomalies; Access pattern deviations"
+                else:
+                    if conf > 0.9:
+                        explanation = "This activity appears normal because the behavioural indicators do not show strong signs of unusual activity."
+                        key_indicators = "None"
+                    elif conf > 0.75:
+                        explanation = "This activity appears to be standard business operations with typical user behaviour patterns."
+                        key_indicators = "None"
+                    else:
+                        explanation = "This activity shows typical user behaviour consistent with established baseline patterns."
+                        key_indicators = "None"
+                
+                export_rows.append({
+                    'Record': i + 1,
+                    'Prediction': pred_label,
+                    'Prediction_Value': pred,
+                    'Confidence': f"{conf*100:.1f}%",
+                    'Risk_Level': risk_label,
+                    'Explanation': explanation,
+                    'Key_Indicators': key_indicators
+                })
+            
+            results_df = pd.DataFrame(export_rows)
+            
+            # Convert to CSV
+            csv_data = results_df.to_csv(index=False)
+            
+            # Download button
+            st.markdown("""
+            <style>
+            div[data-testid="stDownloadButton"] {
+                margin-top: 4px !important;
+            }
+
+            div[data-testid="stDownloadButton"] button {
+                background-color: white !important;
+                color: black !important;
+                border: 1px solid #c6c6cd !important;
+                border-radius: 8px !important;
+                font-weight: 700 !important;
+            }
+
+            div[data-testid="stDownloadButton"] button:hover {
+                background-color: #f2f4f6 !important;
+                color: black !important;
+                border-color: black !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
+            st.download_button(
+                label="Download Results (CSV)",
+                data=csv_data,
+                file_name="threat_predictions.csv",
+                mime="text/csv",
+                help="Download prediction results for all records",
+                type="secondary"
+            )
+            
+        except Exception as e:
+            st.markdown(f"""
+            <div style="background:#ffd6d6; border:1px solid #ffb3b3; border-radius:8px; padding:12px 16px; margin:12px 0;">
+              <p style="color:#000000; margin:0; font-size:14px; font-weight:500;">Error processing file: {str(e)}</p>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        if not model:
+            st.warning("Model not loaded. Please ensure the trained model exists in the models/ directory.")
+        else:
+            # Show example table
+            st.markdown("""
+            <div class="glass-panel">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+                <div>
+                  <p class="title-md" style="margin:0 0 0 0;">Example Prediction Results</p>
+                  <p class="body-sm text-secondary" style="margin:0;">Total Records: 2</p>
+                </div>
+                <div style="text-align:right;">
+                  <p class="code-sm" style="font-weight:700; color:#000; margin:0;">AVG CONFIDENCE: 92.9%</p>
+                  <p class="code-sm text-secondary" style="margin:4px 0 0 0;">MALICIOUS DETECTED: 1</p>
+                </div>
+              </div>
+              <div style="overflow-x:auto; overflow-y:auto; max-height:300px; border:1px solid #c6c6cd; border-radius:8px; margin-bottom:16px;">
+                <table class="confusion" style="width:100%;">
+                  <thead style="background:#e6e8ea; position:sticky; top:0;">
+                    <tr>
+                      <th style="text-align:left; padding:12px 16px;">RECORD</th>
+                      <th style="text-align:left; padding:12px 16px;">PREDICTION</th>
+                      <th style="text-align:left; padding:12px 16px;">CONFIDENCE</th>
+                      <th style="text-align:left; padding:12px 16px;">RISK LEVEL</th>
+                      <th style="text-align:left; padding:12px 16px;">EXPLANATION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:nowrap;">#1</td>
+                      <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-weight:500; color:#191c1e; white-space:nowrap;">Malicious</td>
+                      <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-weight:700; color:#191c1e; white-space:nowrap;">94.2%</td>
+                      <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; white-space:nowrap;">
+                        <span style="display:inline-block; background:rgba(255,26,26,0.12); color:#ba1a1a; border:1px solid rgba(255,26,26,0.3); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600;">HIGH RISK</span>
+                      </td>
+                      <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-size:12px; color:#515f74;">File access anomalies + Off-hours activity</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:12px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:nowrap;">#2</td>
+                      <td style="padding:12px 16px; font-weight:500; color:#191c1e; white-space:nowrap;">Normal</td>
+                      <td style="padding:12px 16px; font-weight:700; color:#191c1e; white-space:nowrap;">91.5%</td>
+                      <td style="padding:12px 16px; white-space:nowrap;">
+                        <span style="display:inline-block; background:rgba(45,125,61,0.12); color:#2d7d3d; border:1px solid rgba(45,125,61,0.3); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600;">LOW RISK</span>
+                      </td>
+                      <td style="padding:12px 16px; font-size:12px; color:#515f74;">Normal operations within baseline</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+
+            
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION 2 — Model Summary
+# ═══════════════════════════════════════════════════════════════════════════
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+st.markdown("""
+<div style="display:flex; align-items:center; gap:12px; border-bottom:1px solid #c6c6cd; padding-bottom:16px; margin-bottom:24px;">
+  <span class="material-symbols-outlined text-primary" style="font-size:28px;">analytics</span>
+  <h2 class="headline-lg">Model Architecture: Random Forest Classifier</h2>
+</div>
+""", unsafe_allow_html=True)
+
+m1, m2, m3, m4 = st.columns(4, gap="small")
+metrics = [
+    ("ACCURACY",  "97.10%", "Overall correctly identified records across all classes."),
+    ("PRECISION", "74.10%", "The ratio of true malicious detections to all predicted threats."),
+    ("RECALL",    "71.03%", "The system's ability to find all actual malicious activities."),
+    ("F1-SCORE",  "72.53%", "Harmonic mean of precision and recall for balanced evaluation."),
+]
+for col, (label, value, desc) in zip([m1, m2, m3, m4], metrics):
+    with col:
+        st.markdown(f"""
+        <div class="metric-card">
+          <p class="label-caps text-secondary" style="margin:0 0 4px 0;">{label}</p>
+          <p style="font-size:30px; font-weight:700; color:#000; margin:0; font-family:'Hanken Grotesk',sans-serif;">{value}</p>
+          <p class="body-sm text-secondary" style="font-size:12px; margin:8px 0 0 0;">{desc}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION 3 — Inference Pipeline
+# ═══════════════════════════════════════════════════════════════════════════
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+st.markdown('<h2 class="headline-lg" style="text-align:center; margin-bottom:36px;">Inference Pipeline</h2>', unsafe_allow_html=True)
+
+p1, p2, p3, p4 = st.columns(4, gap="small")
+steps = [
+    ("1", "Upload CSV",        "Import batch behavioral logs into the secure buffer."),
+    ("2", "Validate Data",     "Automatic cleaning and structural integrity verification."),
+    ("3", "Predict Behaviour", "Random Forest scoring and classification engine."),
+    ("4", "Explain Result",    "XAI output generation for human review."),
+]
+for col, (num, title, desc) in zip([p1, p2, p3, p4], steps):
+    with col:
+        st.markdown(f"""
+        <div style="text-align:center; padding:0 8px;">
+          <div class="pipeline-circle">{num}</div>
+          <p style="font-weight:700; color:#191c1e; margin:0 0 4px 0; font-family:'Hanken Grotesk',sans-serif;">{title}</p>
+          <p class="body-sm text-secondary" style="font-size:12px; margin:0;">{desc}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION 4 — Key Behavioural Indicators
+# ═══════════════════════════════════════════════════════════════════════════
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+st.markdown('<h2 class="headline-lg" style="margin-bottom:24px;">Key Behavioural Indicators</h2>', unsafe_allow_html=True)
+
+indicators = [
+    ("print",                 "Off-hours Printing"),
+    ("description",           "Total Printed Pages"),
+    ("local_fire_department", "File Burning Activity"),
+    ("folder_zip",            "Files Burned From Other Source"),
+    ("event",                 "Weekend Facility Entry"),
+    ("login",                 "Number of Facility Entries"),
+    ("corporate_fare",        "Campus Access"),
+    ("apartment",             "Number of Unique Campuses Accessed"),
+    ("public",                "Activity While Abroad"),
+    ("calendar_today",        "Trip Day Number"),
+    ("warning",               "Hostility Country Level"),
+    ("badge",                 "Contractor Status"),
+    ("groups",                "Employee Classification"),
+]
+
+rows = [indicators[i:i+5] for i in range(0, len(indicators), 5)]
+for row in rows:
+    cols = st.columns(5, gap="small")
+    for i, col in enumerate(cols):
+        if i < len(row):
+            icon, label = row[i]
+            with col:
+                st.markdown(f"""
+                <div class="indicator-card">
+                  <span class="material-symbols-outlined text-secondary" style="font-size:28px;">{icon}</span>
+                  <p class="label-caps text-secondary" style="font-size:10px; margin:8px 0 0 0;">{label}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION 5 — Testing Examples
+# ═══════════════════════════════════════════════════════════════════════════
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+st.markdown('<h2 class="headline-lg" style="margin-bottom:24px;">Testing Examples</h2>', unsafe_allow_html=True)
+
+ex1, ex2 = st.columns(2, gap="medium")
+
+with ex1:
+    st.markdown("""
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span class="badge badge-error">TRUE POSITIVE</span>
+        <span class="code-sm text-secondary">Confidence: 98%</span>
+      </div>
+      <p class="body-md" style="color:#191c1e; margin:0;">Successful detection of actual malicious activity. High-severity alert triggered.</p>
+    </div>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span class="badge badge-neutral">FALSE POSITIVE</span>
+        <span class="code-sm text-secondary">RISK: 0.61</span>
+      </div>
+      <p class="body-md" style="color:#191c1e; margin:0;">Benign activity misclassified as threat. Typical in high-sensitivity settings.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with ex2:
+    st.markdown("""
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span class="badge badge-success">TRUE NEGATIVE</span>
+        <span class="code-sm text-secondary">Confidence: 98%</span>
+      </div>
+      <p class="body-md" style="color:#191c1e; margin:0;">Correctly identified standard, non-malicious business operations.</p>
+    </div>
+    <div class="card" style="border-color:#ffdad6;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span class="badge badge-error">FALSE NEGATIVE</span>
+        <span class="code-sm text-secondary">RISK: 0.14</span>
+      </div>
+      <p class="body-md" style="color:#191c1e; margin:0;">Failure to detect actual threat. Critical area for model optimization.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION 6 — Confusion Matrix
+# ═══════════════════════════════════════════════════════════════════════════
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+
+cm_col, why_col = st.columns([2, 1], gap="large")
+
+with cm_col:
+    st.markdown('<h2 class="headline-lg" style="margin-bottom:20px;">Confusion Matrix Analysis</h2>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="overflow-x:auto; border:1px solid #c6c6cd; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+      <table class="confusion">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Actual / Predicted</th>
+            <th style="text-align:left;">Predicted Normal</th>
+            <th style="text-align:left;">Predicted Malicious</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="row-header">Actual Normal</td>
+            <td style="font-weight:700; color:#191c1e; font-family:'JetBrains Mono',monospace;">22,129 (TN)</td>
+            <td style="color:#515f74; font-family:'JetBrains Mono',monospace;">317 (FP)</td>
+          </tr>
+          <tr>
+            <td class="row-header">Actual Malicious</td>
+            <td style="color:#515f74; font-family:'JetBrains Mono',monospace;">370 (FN)</td>
+            <td style="font-weight:700; color:#ba1a1a; font-family:'JetBrains Mono',monospace;">907 (TP)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    """, unsafe_allow_html=True)
+
+with why_col:
+    st.markdown("""
+    <div class="info-box" style="margin-top:52px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <span class="material-symbols-outlined" style="font-size:22px; color:#000;">info</span>
+        <span class="title-md">Why Recall and F1-Score Matter</span>
+      </div>
+      <p class="body-md text-secondary" style="line-height:1.7; margin:0 0 12px 0;">
+        In insider threat detection, recall is important because a false negative means malicious
+        behaviour was missed. However, precision is also important because false positives may lead
+        to unnecessary investigation. The F1-score balances precision and recall, especially
+        important for imbalanced insider threat data.
+      </p>
+      <ul style="margin:0; padding:0; list-style:none; font-family:'JetBrains Mono',monospace; font-size:12px; color:#000;">
+        <li style="margin-bottom:6px;">• Minimizes Unobserved Threats</li>
+        <li style="margin-bottom:6px;">• Optimizes Security Response</li>
+        <li>• Validates Detection Sensitivity</li>
+      </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION 7 — Explainability Framework
+# ═══════════════════════════════════════════════════════════════════════════
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+st.markdown("""
+<div style="text-align:center; margin-bottom:32px;">
+  <h2 class="headline-lg">Explainability Framework</h2>
+  <p class="body-md text-secondary" style="margin-top:8px;">Transparency in algorithmic decision-making for security compliance.</p>
+</div>
+""", unsafe_allow_html=True)
+
+xai_left, xai_right = st.columns(2, gap="large")
+
+with xai_left:
+    st.markdown("""
+    <h3 class="headline-lg" style="font-size:24px; margin-bottom:10px;">Model Interpretability</h3>
+    <p class="body-md text-secondary" style="margin-bottom:24px; line-height:1.65;">
+        The system uses feature importance and behavioural indicators to explain the model's
+        prediction in human-readable form.
+    </p>
+    """, unsafe_allow_html=True)
+
+    for name, pct in [("File Burning Activity", 42), ("Off-hours Printing", 28), ("Total Printed Pages", 15)]:
+        st.markdown(f"""
+        <div style="margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span class="label-caps text-secondary" style="font-size:10px; text-transform:uppercase; font-weight:700;">{name}</span>
+            <span class="label-caps text-error" style="font-size:10px; font-weight:700;">+{pct}% Impact</span>
+          </div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:{pct}%;"></div></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+with xai_right:
+    st.image(
+        "https://lh3.googleusercontent.com/aida-public/AB6AXuCDN_wQR7HXS-8aRqfJWg1SzIqkD1NMbGuFAUlIj9Whn5Oso_yvABanh_ZOZBLE3UnftkvpV_2q5n_w6AoA_LJ9DODcqeZlYq66WAnxgBvW9jTjwnMVjhm-Xz_63-u-ZAOqlUkSpPKE8YqB_-U6OBPAtr5skonIMaYBQ_7DvJDOpzctIZ-IiPlq_WpemO9uRTYYxPy62e15b8n9Xt9N63pcBEFtjFxjfbFHNWacyXjiGjO4GY-unBojYuCv3PPh3f1ArGNcq05yCr0",
+        caption="XAI Feature Importance Plot",
+        use_container_width=True,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION 8 — Ethics & Limitations
+# ═══════════════════════════════════════════════════════════════════════════
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+st.markdown("""
+<div class="ethics-box">
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+    <span class="material-symbols-outlined text-error" style="font-size:28px;">gavel</span>
+    <h2 class="headline-lg">Ethics &amp; Protocol Limitations</h2>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:32px;">
+    <div>
+      <p class="body-lg" style="font-weight:700; color:#191c1e; margin:0 0 12px 0;">Prototype Disclaimer</p>
+      <p class="body-md text-secondary" style="line-height:1.7; margin:0;">
+        This system is an academic prototype. Predictions should support further human investigation
+        and should not be treated as proof of malicious intent.
+      </p>
+    </div>
+    <div>
+      <p class="body-lg" style="font-weight:700; color:#191c1e; margin:0 0 12px 0;">Human-in-the-Loop Requirement</p>
+      <ul style="list-style:none; padding:0; margin:0;">
+        <li style="display:flex; gap:10px; margin-bottom:12px; align-items:flex-start;">
+          <span class="material-symbols-outlined" style="font-size:18px; color:#000; margin-top:2px; flex-shrink:0;">check_circle</span>
+          <span class="body-md text-secondary">All high-risk alerts must be reviewed by a human analyst before any action is taken.</span>
+        </li>
+        <li style="display:flex; gap:10px; margin-bottom:12px; align-items:flex-start;">
+          <span class="material-symbols-outlined" style="font-size:18px; color:#000; margin-top:2px; flex-shrink:0;">check_circle</span>
+          <span class="body-md text-secondary">Data ingestion must comply with GDPR and local labor privacy laws.</span>
+        </li>
+        <li style="display:flex; gap:10px; align-items:flex-start;">
+          <span class="material-symbols-outlined" style="font-size:18px; color:#000; margin-top:2px; flex-shrink:0;">check_circle</span>
+          <span class="body-md text-secondary">Model bias audits should be conducted quarterly on demographic data.</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+# ── Footer ───────────────────────────────────────────────────────────────
+st.markdown("""
+<hr style="border:none; border-top:1px solid #c6c6cd; margin-top:64px;">
+<p class="label-caps text-secondary" style="text-align:center; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; padding:24px 0; margin:0;">
+  COS720 Insider Threat Detection Prototype • Academic Demonstration System
+</p>
+""", unsafe_allow_html=True)

@@ -7,3 +7,7 @@ matplotlib
 Pillow
 scikit-learn
 python-dotenv
+streamlit==1.41.1
+starlette==0.41.3
+plotly
+kaleido
