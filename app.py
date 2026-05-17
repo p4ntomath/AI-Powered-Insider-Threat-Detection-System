@@ -3,6 +3,28 @@ import pandas as pd
 import numpy as np
 import joblib
 from pathlib import Path
+EXPECTED_FEATURES = [
+    "employee_department",
+    "employee_campus",
+    "employee_position",
+    "employee_seniority_years",
+    "is_contractor",
+    "employee_classification",
+    "has_foreign_citizenship",
+    "has_criminal_record",
+    "has_medical_history",
+    "employee_origin_country",
+    "total_printed_pages",
+    "num_printed_pages_off_hours",
+    "total_files_burned",
+    "burned_from_other",
+    "is_abroad",
+    "trip_day_number",
+    "hostility_country_level",
+    "num_entries",
+    "num_unique_campus",
+    "entry_during_weekend",
+]
 
 st.set_page_config(
     page_title="SENTINEL INTELLIGENCE | COS720 Insider Threat Prototype",
@@ -258,13 +280,97 @@ st.markdown("""
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 1 — Hero & Upload
 # ═══════════════════════════════════════════════════════════════════════════
+
+# Button styling
+st.markdown("""
+<style>
+div[data-testid="stDownloadButton"] {
+    margin-top: 4px !important;
+}
+
+div[data-testid="stDownloadButton"] button,
+div[data-testid="stButton"] button {
+    background-color: white !important;
+    color: black !important;
+    border: 1px solid #c6c6cd !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+}
+
+div[data-testid="stDownloadButton"] button:hover,
+div[data-testid="stButton"] button:hover {
+    background-color: #f2f4f6 !important;
+    color: black !important;
+    border-color: black !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+def get_record_explanation(row, pred, conf):
+    """Generate simple dataset-aligned explanation and key indicators."""
+    indicators = []
+
+    if row.get("total_files_burned", 0) > 0:
+        indicators.append("File burning activity")
+    if row.get("num_printed_pages_off_hours", 0) > 0:
+        indicators.append("Off-hours printing")
+    if row.get("total_printed_pages", 0) > 100:
+        indicators.append("High printing volume")
+    if row.get("burned_from_other", 0) > 0:
+        indicators.append("Files burned from another source")
+    if row.get("entry_during_weekend", 0) == 1:
+        indicators.append("Weekend facility entry")
+    if row.get("is_abroad", 0) == 1:
+        indicators.append("Activity while abroad")
+    if row.get("hostility_country_level", 0) > 0:
+        indicators.append("Hostility country indicator")
+    if row.get("num_entries", 0) > 5:
+        indicators.append("High facility entry count")
+    if row.get("num_unique_campus", 0) > 1:
+        indicators.append("Multiple campus access")
+    if row.get("is_contractor", 0) == 1:
+        indicators.append("Contractor status")
+
+    if pred == 1:
+        if indicators:
+            explanation = (
+                "This activity was flagged because the record shows "
+                + ", ".join(indicators)
+                + "."
+            )
+        else:
+            explanation = (
+                "This activity was flagged because the overall behavioural pattern "
+                "matched potential malicious insider activity."
+            )
+    else:
+        if indicators:
+            explanation = (
+                "This activity was classified as normal, although some indicators "
+                "were present: "
+                + ", ".join(indicators)
+                + ". The overall pattern did not match malicious activity."
+            )
+        else:
+            explanation = (
+                "This activity appears normal because the behavioural indicators do "
+                "not show strong signs of unusual printing, file burning, weekend access, "
+                "or travel-related risk."
+            )
+
+    key_indicators = "; ".join(indicators) if indicators else "None"
+    return explanation, key_indicators
+
+
 col_hero, col_result = st.columns([1, 1], gap="medium")
 
 with col_hero:
     st.markdown("""
     <h1 class="display-lg">AI-Powered Insider Threat Detection System</h1>
     <p class="body-lg text-secondary" style="margin-bottom:24px; line-height:1.6;">
-        Deploying advanced behavioral analytics to identify high-risk internal activity before data breaches occur. Upload employee records for immediate predictive analysis.
+        Deploying advanced behavioral analytics to identify high-risk internal activity before data breaches occur.
+        Upload employee records for immediate predictive analysis.
     </p>
     """, unsafe_allow_html=True)
 
@@ -273,84 +379,118 @@ with col_hero:
         type=["csv"],
         label_visibility="visible",
     )
-    
+
+
 with col_result:
     if uploaded_file and model:
-        # Read the uploaded file
         try:
+            # Read uploaded file
             df = pd.read_csv(uploaded_file)
-            
+
+            # Drop columns that should not be used for prediction
+            df_model = df.copy()
+            for col in ["is_malicious", "late_exit_flag"]:
+                if col in df_model.columns:
+                    df_model = df_model.drop(columns=[col])
+
+            # If you already have EXPECTED_FEATURES defined globally, this validates input
+            missing_cols = [col for col in EXPECTED_FEATURES if col not in df_model.columns]
+            if missing_cols:
+                raise ValueError("Missing required columns: " + ", ".join(missing_cols))
+
+            df_model = df_model[EXPECTED_FEATURES]
+
             # Make predictions
-            predictions = model.predict(df)
-            probabilities = model.predict_proba(df)[:, 1]
-            
-            # Get first prediction to display
-            first_pred = predictions[0]
-            first_prob = probabilities[0]
-            confidence = first_prob if first_pred == 1 else (1 - first_prob)
-            
-            # Behavioral explanation based on prediction
-            if first_pred == 1:
-                explanation = "Unusual behavioural activity detected. Multiple risk indicators identified including suspicious access patterns, off-hours activity, and file operations that deviate from normal baseline. Risk profile matches patterns of potential authorised data exfiltration."
-            else:
-                explanation = "Normal behavioral activity detected. User behavior aligns with established baseline patterns. All activity indicators fall within expected operational parameters with no anomalies identified."
-            
-            # Create table rows as a list first
+            predictions = model.predict(df_model)
+            probabilities = model.predict_proba(df_model)[:, 1]
+
             table_rows_html = ""
-            
-            
-            # Show all predictions from uploaded file
-            display_limit = len(predictions)
-            for i in range(display_limit):
+            export_rows = []
+
+            for i in range(len(predictions)):
                 pred = predictions[i]
                 prob = probabilities[i]
                 conf = prob if pred == 1 else (1 - prob)
-                pred_label = "Malicious" if pred == 1 else "Normal"
+
+                short_pred_label = "Malicious" if pred == 1 else "Normal"
+                full_pred_label = (
+                    "Malicious Insider Activity"
+                    if pred == 1
+                    else "Normal / Benign Behaviour"
+                )
+
                 risk_label = "HIGH RISK" if pred == 1 else "LOW RISK"
                 risk_color = "#ba1a1a" if pred == 1 else "#2d7d3d"
+
                 bg_r = 255 if pred == 1 else 45
                 bg_g = 26 if pred == 1 else 125
                 bg_b = 26 if pred == 1 else 61
-                
-                # Generate explanation based on model confidence and prediction
-                if pred == 1:
-                    if conf > 0.9:
-                        record_explanation = "File access anomalies + Off-hours activity"
-                    elif conf > 0.75:
-                        record_explanation = "Unusual printing patterns detected"
-                    else:
-                        record_explanation = "Multiple suspicious indicators"
-                else:
-                    if conf > 0.9:
-                        record_explanation = "Normal operations within baseline"
-                    elif conf > 0.75:
-                        record_explanation = "Standard business activities"
-                    else:
-                        record_explanation = "Typical user behavior"
 
-                
-                table_rows_html += f"""<tr>
-                  <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:nowrap;">#{i+1}</td>
-                  <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-weight:500; color:#191c1e; white-space:nowrap;">{pred_label}</td>
-                  <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-weight:700; color:#191c1e; white-space:nowrap;">{conf*100:.1f}%</td>
-                  <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; white-space:nowrap;">
-                    <span style="display:inline-block; background:rgba({bg_r},{bg_g},{bg_b},0.12); color:{risk_color}; border:1px solid rgba({bg_r},{bg_g},{bg_b},0.3); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600;">{risk_label}</span>
-                  </td>
-                  <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-size:12px; color:#515f74;">{record_explanation}</td>
-                </tr>"""
-            
+                explanation, key_indicators = get_record_explanation(
+                    df_model.iloc[i], pred, conf
+                )
+
+                short_explanation = key_indicators
+                if short_explanation == "None":
+                    short_explanation = "Normal operations within baseline"
+
+                # HTML table preview row - single line to avoid rendering issues
+                table_rows_html += f"<tr><td style='padding:12px 16px; border-bottom:1px solid #c6c6cd; font-family:\"JetBrains Mono\",monospace; font-size:12px; white-space:nowrap;'>#{i+1}</td><td style='padding:12px 16px; border-bottom:1px solid #c6c6cd; font-weight:500; color:#191c1e; white-space:nowrap;'>{short_pred_label}</td><td style='padding:12px 16px; border-bottom:1px solid #c6c6cd; font-weight:700; color:#191c1e; white-space:nowrap;'>{conf*100:.1f}%</td><td style='padding:12px 16px; border-bottom:1px solid #c6c6cd; white-space:nowrap;'><span style='display:inline-block; background:rgba({bg_r},{bg_g},{bg_b},0.12); color:{risk_color}; border:1px solid rgba({bg_r},{bg_g},{bg_b},0.3); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600;'>{risk_label}</span></td><td style='padding:12px 16px; border-bottom:1px solid #c6c6cd; font-size:12px; color:#515f74;'>{short_explanation}</td></tr>"
+
+                # Download / expanded table row
+                export_row = {
+                    "Record": i + 1,
+                    "Prediction": full_pred_label,
+                    "Prediction_Value": int(pred),
+                    "Confidence": f"{conf*100:.1f}%",
+                    "Risk_Level": risk_label,
+                    "Explanation": explanation,
+                    "Key_Indicators": key_indicators,
+                    "Employee_Department": df_model.iloc[i].get("employee_department", ""),
+                    "Employee_Position": df_model.iloc[i].get("employee_position", ""),
+                    "Employee_Classification": df_model.iloc[i].get("employee_classification", ""),
+                    "Contractor_Status": df_model.iloc[i].get("is_contractor", ""),
+                    "total_printed_pages": df_model.iloc[i].get("total_printed_pages", ""),
+                    "num_printed_pages_off_hours": df_model.iloc[i].get("num_printed_pages_off_hours", ""),
+                    "total_files_burned": df_model.iloc[i].get("total_files_burned", ""),
+                    "burned_from_other": df_model.iloc[i].get("burned_from_other", ""),
+                    "entry_during_weekend": df_model.iloc[i].get("entry_during_weekend", ""),
+                    "is_abroad": df_model.iloc[i].get("is_abroad", ""),
+                    "num_entries": df_model.iloc[i].get("num_entries", ""),
+                    "num_unique_campus": df_model.iloc[i].get("num_unique_campus", ""),
+                }
+
+                export_rows.append(export_row)
+
+            results_df = pd.DataFrame(export_rows)
+            csv_data = results_df.to_csv(index=False)
+
+            # Store for expanded table outside the columns
+            st.session_state["prediction_results_df"] = results_df
+
+            if "show_full_table" not in st.session_state:
+                st.session_state["show_full_table"] = False
+
+            avg_confidence = np.mean(
+                np.where(predictions == 1, probabilities, 1 - probabilities)
+            ) * 100
+
+            malicious_count = int(sum(predictions))
+
+            # Preview table panel
             st.markdown(f"""
             <div class="glass-panel">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
                 <div>
                   <p class="title-md" style="margin:0 0 8px 0;">Prediction Results</p>
-                  <p class="body-sm text-secondary" style="margin:0;">Total Records: {len(df)}</p>
+                  <p class="body-sm text-secondary" style="margin:0;">Total Records: {len(df_model)}</p>
                 </div>
                 <div style="text-align:right;">
-                  <p class="code-sm" style="font-weight:700; color:#000; margin:0;">AVG CONFIDENCE: {np.mean(np.where(predictions == 1, probabilities, 1 - probabilities))*100:.1f}%</p>
-                  <p class="code-sm text-secondary" style="margin:4px 0 0 0;">MALICIOUS DETECTED: {sum(predictions)}</p>
+                  <p class="code-sm" style="font-weight:700; color:#000; margin:0;">AVG CONFIDENCE: {avg_confidence:.1f}%</p>
+                  <p class="code-sm text-secondary" style="margin:4px 0 0 0;">MALICIOUS DETECTED: {malicious_count}</p>
                 </div>
               </div>
+
               <div style="overflow-x:auto; overflow-y:auto; max-height:300px; border:1px solid #c6c6cd; border-radius:8px; margin-bottom:16px;">
                 <table class="confusion" style="width:100%;">
                   <thead style="background:#e6e8ea; position:sticky; top:0;">
@@ -369,98 +509,37 @@ with col_result:
               </div>
             </div>
             """, unsafe_allow_html=True)
-            
-            # Create results dataframe for download with detailed information
-            export_rows = []
-            for i in range(len(df)):
-                pred = predictions[i]
-                prob = probabilities[i]
-                conf = prob if pred == 1 else (1 - prob)
-                
-                # Prediction label and value
-                pred_label = "Malicious Insider Activity" if pred == 1 else "Normal / Benign Behaviour"
-                risk_label = "HIGH RISK" if pred == 1 else "LOW RISK"
-                
-                # Generate explanation and key indicators
-                if pred == 1:
-                    if conf > 0.9:
-                        explanation = "This activity was flagged because the record shows file burning activity, off-hours printing, and potential data exfiltration patterns."
-                        key_indicators = "File burning activity; Off-hours printing; Unusual access patterns"
-                    elif conf > 0.75:
-                        explanation = "This activity was flagged due to suspicious printing patterns and behavioural anomalies detected in the records."
-                        key_indicators = "Unusual printing patterns; Printing volume anomalies; Off-hours activity"
-                    else:
-                        explanation = "Multiple suspicious indicators were detected in this record that deviate from baseline behaviour."
-                        key_indicators = "Multiple suspicious indicators; Behavioural anomalies; Access pattern deviations"
-                else:
-                    if conf > 0.9:
-                        explanation = "This activity appears normal because the behavioural indicators do not show strong signs of unusual activity."
-                        key_indicators = "None"
-                    elif conf > 0.75:
-                        explanation = "This activity appears to be standard business operations with typical user behaviour patterns."
-                        key_indicators = "None"
-                    else:
-                        explanation = "This activity shows typical user behaviour consistent with established baseline patterns."
-                        key_indicators = "None"
-                
-                export_rows.append({
-                    'Record': i + 1,
-                    'Prediction': pred_label,
-                    'Prediction_Value': pred,
-                    'Confidence': f"{conf*100:.1f}%",
-                    'Risk_Level': risk_label,
-                    'Explanation': explanation,
-                    'Key_Indicators': key_indicators
-                })
-            
-            results_df = pd.DataFrame(export_rows)
-            
-            # Convert to CSV
-            csv_data = results_df.to_csv(index=False)
-            
-            # Download button
-            st.markdown("""
-            <style>
-            div[data-testid="stDownloadButton"] {
-                margin-top: 4px !important;
-            }
 
-            div[data-testid="stDownloadButton"] button {
-                background-color: white !important;
-                color: black !important;
-                border: 1px solid #c6c6cd !important;
-                border-radius: 8px !important;
-                font-weight: 700 !important;
-            }
+            # Download + expanded table toggle buttons
+            btn_col1, btn_col2 = st.columns([3, 1])
 
-            div[data-testid="stDownloadButton"] button:hover {
-                background-color: #f2f4f6 !important;
-                color: black !important;
-                border-color: black !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
+            with btn_col1:
+                st.download_button(
+                    label="Download Results (CSV)",
+                    data=csv_data,
+                    file_name="threat_predictions.csv",
+                    mime="text/csv",
+                    help="Download prediction results for all records",
+                    type="secondary",
+                    use_container_width=True,
+                )
 
-            st.download_button(
-                label="Download Results (CSV)",
-                data=csv_data,
-                file_name="threat_predictions.csv",
-                mime="text/csv",
-                help="Download prediction results for all records",
-                type="secondary"
-            )
-            
+            with btn_col2:
+                if st.button("⛶", help="Show / hide full table", use_container_width=True):
+                    st.session_state["show_full_table"] = not st.session_state["show_full_table"]
+
         except Exception as e:
             st.markdown(f"""
             <div style="background:#ffd6d6; border:1px solid #ffb3b3; border-radius:8px; padding:12px 16px; margin:12px 0;">
               <p style="color:#000000; margin:0; font-size:14px; font-weight:500;">Error processing file: {str(e)}</p>
             </div>
             """, unsafe_allow_html=True)
+
     else:
         if not model:
             st.warning("Model not loaded. Please ensure the trained model exists in the models/ directory.")
         else:
-            # Show example table
+            # Show example table before upload
             st.markdown("""
             <div class="glass-panel">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
@@ -473,6 +552,7 @@ with col_result:
                   <p class="code-sm text-secondary" style="margin:4px 0 0 0;">MALICIOUS DETECTED: 1</p>
                 </div>
               </div>
+
               <div style="overflow-x:auto; overflow-y:auto; max-height:300px; border:1px solid #c6c6cd; border-radius:8px; margin-bottom:16px;">
                 <table class="confusion" style="width:100%;">
                   <thead style="background:#e6e8ea; position:sticky; top:0;">
@@ -492,7 +572,7 @@ with col_result:
                       <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; white-space:nowrap;">
                         <span style="display:inline-block; background:rgba(255,26,26,0.12); color:#ba1a1a; border:1px solid rgba(255,26,26,0.3); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600;">HIGH RISK</span>
                       </td>
-                      <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-size:12px; color:#515f74;">File access anomalies + Off-hours activity</td>
+                      <td style="padding:12px 16px; border-bottom:1px solid #c6c6cd; font-size:12px; color:#515f74;">File burning activity + Off-hours printing</td>
                     </tr>
                     <tr>
                       <td style="padding:12px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:nowrap;">#2</td>
@@ -510,7 +590,28 @@ with col_result:
             """, unsafe_allow_html=True)
 
 
-            
+# ═══════════════════════════════════════════════════════════════════════════
+# FULL-WIDTH EXPANDED TABLE — OUTSIDE THE COLUMNS
+# ═══════════════════════════════════════════════════════════════════════════
+if (
+    st.session_state.get("show_full_table", False)
+    and "prediction_results_df" in st.session_state
+):
+    st.markdown("""
+    <div style="margin-top:8px; margin-bottom:8px; padding:8px; border:1px solid #c6c6cd; border-radius:12px; background:#ffffff;">
+        <p class="title-md" style="margin:0 ;">Full Prediction Results Table</p>
+        <p class="body-sm text-secondary" style="margin:0 0 12px 0;">
+            Expanded view of all prediction results.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.dataframe(
+        st.session_state["prediction_results_df"],
+        use_container_width=True,
+        height=600,
+        hide_index=True,
+    )
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 2 — Model Summary
