@@ -266,6 +266,20 @@ table.confusion .row-header {
     font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: #191c1e;
 }
 
+.topnav-spacer {
+    height: 72px;
+}
+
+@media (max-width: 768px) {
+    .topnav {
+        display: none !important;
+    }
+    .topnav-spacer {
+        display: none !important;
+        height: 0 !important;
+    }
+}
+
 /* Smooth scrolling behavior for anchor links */
 html {
     scroll-behavior: smooth;
@@ -357,7 +371,7 @@ st.markdown("""
   </div>
   <span class="topnav-brand">COS720 Prototype</span>
 </div>
-<div style="height:72px;"></div>
+<div class="topnav-spacer"></div>
 """, unsafe_allow_html=True)
 
 
