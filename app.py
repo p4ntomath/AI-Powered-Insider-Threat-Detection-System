@@ -514,6 +514,7 @@ with col_result:
             btn_col1, btn_col2 = st.columns([3, 1])
 
             with btn_col1:
+                st.markdown("<div style='margin-top: 0px;'></div>", unsafe_allow_html=True)
                 st.download_button(
                     label="Download Results (CSV)",
                     data=csv_data,
@@ -525,6 +526,7 @@ with col_result:
                 )
 
             with btn_col2:
+                st.markdown("<div style='margin-top: 1px;'></div>", unsafe_allow_html=True)
                 if st.button("⛶", help="Show / hide full table", use_container_width=True):
                     st.session_state["show_full_table"] = not st.session_state["show_full_table"]
 
@@ -808,11 +810,89 @@ with why_col:
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 7 — Explainability Framework
 # ═══════════════════════════════════════════════════════════════════════════
+
+FEATURE_IMPORTANCE_PATH = "outputs/feature_importance.csv"
+
+FEATURE_LABELS = {
+    "total_printed_pages": "Total Printed Pages",
+    "num_printed_pages_off_hours": "Off-hours Printing",
+    "total_files_burned": "File Burning Activity",
+    "burned_from_other": "Files Burned From Other Source",
+    "is_abroad": "Activity While Abroad",
+    "trip_day_number": "Trip Day Number",
+    "hostility_country_level": "Hostility Country Level",
+    "num_entries": "Number of Facility Entries",
+    "num_unique_campus": "Number of Unique Campuses Accessed",
+    "entry_during_weekend": "Weekend Facility Entry",
+    "is_contractor": "Contractor Status",
+    "employee_classification": "Employee Classification",
+    "employee_seniority_years": "Employee Seniority Years",
+    "employee_department": "Employee Department",
+    "employee_campus": "Employee Campus",
+    "employee_position": "Employee Position",
+    "employee_origin_country": "Employee Origin Country",
+    "has_foreign_citizenship": "Foreign Citizenship",
+    "has_criminal_record": "Criminal Record Indicator",
+    "has_medical_history": "Medical History Indicator",
+}
+
+
+def clean_feature_name(feature_name):
+    """Clean transformed feature names from the preprocessing pipeline."""
+    feature_name = str(feature_name)
+
+    # Remove sklearn ColumnTransformer prefixes
+    feature_name = feature_name.replace("num__", "").replace("cat__", "")
+
+    # For one-hot encoded categorical variables, keep readable form
+    for base_feature in [
+        "employee_department",
+        "employee_campus",
+        "employee_position",
+        "employee_origin_country",
+    ]:
+        if feature_name.startswith(base_feature + "_"):
+            category = feature_name.replace(base_feature + "_", "")
+            readable_base = FEATURE_LABELS.get(base_feature, base_feature.replace("_", " ").title())
+            return f"{readable_base}: {category}"
+
+    return FEATURE_LABELS.get(feature_name, feature_name.replace("_", " ").title())
+
+
+def load_feature_importance(path):
+    """Load real feature importance values from the model output CSV."""
+    try:
+        fi_df = pd.read_csv(path)
+
+        # Support both possible column formats: Feature/Importance or feature/importance
+        fi_df.columns = [col.strip().lower() for col in fi_df.columns]
+
+        if "feature" not in fi_df.columns or "importance" not in fi_df.columns:
+            return pd.DataFrame(columns=["Label", "Importance", "Relative_Impact"])
+
+        fi_df["Label"] = fi_df["feature"].apply(clean_feature_name)
+        fi_df["Importance"] = fi_df["importance"].astype(float)
+
+        fi_df = fi_df.sort_values("Importance", ascending=False).head(5)
+
+        max_importance = fi_df["Importance"].max()
+        fi_df["Relative_Impact"] = (fi_df["Importance"] / max_importance * 100).round(1)
+
+        return fi_df
+
+    except Exception:
+        return pd.DataFrame(columns=["Label", "Importance", "Relative_Impact"])
+
+
+feature_importance_df = load_feature_importance(FEATURE_IMPORTANCE_PATH)
+
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown("""
 <div style="text-align:center; margin-bottom:32px;">
   <h2 class="headline-lg">Explainability Framework</h2>
-  <p class="body-md text-secondary" style="margin-top:8px;">Transparency in algorithmic decision-making for security compliance.</p>
+  <p class="body-md text-secondary" style="margin-top:8px;">
+    Transparency in algorithmic decision-making for security compliance.
+  </p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -822,30 +902,59 @@ with xai_left:
     st.markdown("""
     <h3 class="headline-lg" style="font-size:24px; margin-bottom:10px;">Model Interpretability</h3>
     <p class="body-md text-secondary" style="margin-bottom:24px; line-height:1.65;">
-        The system uses feature importance and behavioural indicators to explain the model's
-        prediction in human-readable form.
+        The system uses the Random Forest model's feature importance values and behavioural
+        indicators to explain predictions in human-readable form.
     </p>
     """, unsafe_allow_html=True)
 
-    for name, pct in [("File Burning Activity", 42), ("Off-hours Printing", 28), ("Total Printed Pages", 15)]:
-        st.markdown(f"""
-        <div style="margin-bottom:16px;">
-          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-            <span class="label-caps text-secondary" style="font-size:10px; text-transform:uppercase; font-weight:700;">{name}</span>
-            <span class="label-caps text-error" style="font-size:10px; font-weight:700;">+{pct}% Impact</span>
-          </div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:{pct}%;"></div></div>
-        </div>
-        """, unsafe_allow_html=True)
+    if feature_importance_df.empty:
+        st.warning("Feature importance file not found. Run train_model.py first.")
+    else:
+        for _, row in feature_importance_df.iterrows():
+            name = row["Label"]
+            importance = row["Importance"]
+            relative_pct = row["Relative_Impact"]
+
+            st.markdown(f"""
+            <div style="margin-bottom:16px;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span class="label-caps text-secondary" style="font-size:10px; text-transform:uppercase; font-weight:700;">
+                    {name}
+                </span>
+                <span class="label-caps text-error" style="font-size:10px; font-weight:700;">
+                    {importance:.4f}
+                </span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width:{relative_pct}%;"></div>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.caption(
+            "The bar length is normalised relative to the most important feature. "
+            "The number shown is the actual Random Forest feature importance score."
+        )
 
 with xai_right:
-    st.image(
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuCDN_wQR7HXS-8aRqfJWg1SzIqkD1NMbGuFAUlIj9Whn5Oso_yvABanh_ZOZBLE3UnftkvpV_2q5n_w6AoA_LJ9DODcqeZlYq66WAnxgBvW9jTjwnMVjhm-Xz_63-u-ZAOqlUkSpPKE8YqB_-U6OBPAtr5skonIMaYBQ_7DvJDOpzctIZ-IiPlq_WpemO9uRTYYxPy62e15b8n9Xt9N63pcBEFtjFxjfbFHNWacyXjiGjO4GY-unBojYuCv3PPh3f1ArGNcq05yCr0",
-        caption="XAI Feature Importance Plot",
-        use_container_width=True,
-    )
+    if not feature_importance_df.empty:
+        chart_df = feature_importance_df[["Label", "Importance"]].sort_values(
+            "Importance", ascending=True
+        )
 
-
+        st.bar_chart(
+            chart_df.set_index("Label"),
+            use_container_width=True
+        )
+    else:
+        st.markdown("""
+        <div style="background:#f2f4f6; border:1px solid #c6c6cd; border-radius:12px; padding:32px; text-align:center;">
+            <p class="title-md" style="margin:0 0 8px 0;">Feature Importance Visualisation</p>
+            <p class="body-md text-secondary" style="margin:0;">
+                Run the training script to generate feature_importance.csv.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 8 — Ethics & Limitations
 # ═══════════════════════════════════════════════════════════════════════════
