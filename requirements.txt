@@ -1,0 +1,9 @@
+numpy
+pandas
+flask
+flask-cors
+joblib
+matplotlib
+Pillow
+scikit-learn
+python-dotenv
