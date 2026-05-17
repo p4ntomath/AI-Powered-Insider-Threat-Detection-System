@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 from pathlib import Path
+
 EXPECTED_FEATURES = [
     "employee_department",
     "employee_campus",
@@ -618,21 +619,93 @@ if (
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 2 — Model Summary
 # ═══════════════════════════════════════════════════════════════════════════
+
+CONFUSION_MATRIX_PATH = "outputs/confusion_matrix.csv"
+
+
+def load_model_metrics_from_confusion_matrix(path):
+    """
+    Load confusion matrix and calculate accuracy, precision, recall, and F1-score.
+
+    Expected confusion_matrix.csv format:
+        index: Actual Normal, Actual Malicious
+        columns: Predicted Normal, Predicted Malicious
+    """
+    try:
+        cm_df = pd.read_csv(path, index_col=0)
+
+        tn = int(cm_df.loc["Actual Normal", "Predicted Normal"])
+        fp = int(cm_df.loc["Actual Normal", "Predicted Malicious"])
+        fn = int(cm_df.loc["Actual Malicious", "Predicted Normal"])
+        tp = int(cm_df.loc["Actual Malicious", "Predicted Malicious"])
+
+        total = tn + fp + fn + tp
+
+        accuracy = (tp + tn) / total if total > 0 else 0
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+        f1_score = (
+            2 * precision * recall / (precision + recall)
+            if (precision + recall) > 0
+            else 0
+        )
+
+        return {
+            "accuracy": accuracy,
+            "precision": precision,
+            "recall": recall,
+            "f1_score": f1_score,
+            "loaded": True,
+            "message": None,
+        }
+
+    except Exception as e:
+        return {
+            "accuracy": 0.9710,
+            "precision": 0.7410,
+            "recall": 0.7103,
+            "f1_score": 0.7253,
+            "loaded": False,
+            "message": str(e),
+        }
+
+
+model_metrics = load_model_metrics_from_confusion_matrix(CONFUSION_MATRIX_PATH)
+
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-st.markdown("""
-<div style="display:flex; align-items:center; gap:12px; border-bottom:1px solid #c6c6cd; padding-bottom:16px; margin-bottom:24px;">
-  <span class="material-symbols-outlined text-primary" style="font-size:28px;">analytics</span>
-  <h2 class="headline-lg">Model Architecture: Random Forest Classifier</h2>
-</div>
-""", unsafe_allow_html=True)
+st.markdown('<h2 class="headline-lg" style="text-align:center; margin-bottom:36px;">Model Architecture: Random Forest Classifier</h2>', unsafe_allow_html=True)
+
+if not model_metrics["loaded"]:
+    st.warning(
+        "Could not load outputs/confusion_matrix.csv. Showing fallback model metrics. "
+        f"Details: {model_metrics['message']}"
+    )
 
 m1, m2, m3, m4 = st.columns(4, gap="small")
+
 metrics = [
-    ("ACCURACY",  "97.10%", "Overall correctly identified records across all classes."),
-    ("PRECISION", "74.10%", "The ratio of true malicious detections to all predicted threats."),
-    ("RECALL",    "71.03%", "The system's ability to find all actual malicious activities."),
-    ("F1-SCORE",  "72.53%", "Harmonic mean of precision and recall for balanced evaluation."),
+    (
+        "ACCURACY",
+        f"{model_metrics['accuracy'] * 100:.2f}%",
+        "Overall correctly identified records across all classes.",
+    ),
+    (
+        "PRECISION",
+        f"{model_metrics['precision'] * 100:.2f}%",
+        "The ratio of true malicious detections to all predicted threats.",
+    ),
+    (
+        "RECALL",
+        f"{model_metrics['recall'] * 100:.2f}%",
+        "The system's ability to find all actual malicious activities.",
+    ),
+    (
+        "F1-SCORE",
+        f"{model_metrics['f1_score'] * 100:.2f}%",
+        "Harmonic mean of precision and recall for balanced evaluation.",
+    ),
 ]
+
 for col, (label, value, desc) in zip([m1, m2, m3, m4], metrics):
     with col:
         st.markdown(f"""
@@ -642,8 +715,6 @@ for col, (label, value, desc) in zip([m1, m2, m3, m4], metrics):
           <p class="body-sm text-secondary" style="font-size:12px; margin:8px 0 0 0;">{desc}</p>
         </div>
         """, unsafe_allow_html=True)
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 3 — Inference Pipeline
 # ═══════════════════════════════════════════════════════════════════════════
@@ -672,7 +743,7 @@ for col, (num, title, desc) in zip([p1, p2, p3, p4], steps):
 # SECTION 4 — Key Behavioural Indicators
 # ═══════════════════════════════════════════════════════════════════════════
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-st.markdown('<h2 class="headline-lg" style="margin-bottom:24px;">Key Behavioural Indicators</h2>', unsafe_allow_html=True)
+st.markdown('<h2 class="headline-lg" style="text-align:center;margin-bottom:24px;">Key Behavioural Indicators</h2>', unsafe_allow_html=True)
 
 indicators = [
     ("print",                 "Off-hours Printing"),
@@ -709,7 +780,7 @@ for row in rows:
 # SECTION 5 — Testing Examples
 # ═══════════════════════════════════════════════════════════════════════════
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-st.markdown('<h2 class="headline-lg" style="margin-bottom:24px;">Testing Examples</h2>', unsafe_allow_html=True)
+st.markdown('<h2 class="headline-lg" style="text-align:center;margin-bottom:24px;">Testing Examples</h2>', unsafe_allow_html=True)
 
 ex1, ex2 = st.columns(2, gap="medium")
 
@@ -753,13 +824,65 @@ with ex2:
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 6 — Confusion Matrix
 # ═══════════════════════════════════════════════════════════════════════════
+
+CONFUSION_MATRIX_PATH = "outputs/confusion_matrix.csv"
+
+
+def load_confusion_matrix(path):
+    """
+    Load confusion matrix values from outputs/confusion_matrix.csv.
+
+    Expected format from train_model.py:
+        index: Actual Normal, Actual Malicious
+        columns: Predicted Normal, Predicted Malicious
+    """
+    try:
+        cm_df = pd.read_csv(path, index_col=0)
+
+        tn = int(cm_df.loc["Actual Normal", "Predicted Normal"])
+        fp = int(cm_df.loc["Actual Normal", "Predicted Malicious"])
+        fn = int(cm_df.loc["Actual Malicious", "Predicted Normal"])
+        tp = int(cm_df.loc["Actual Malicious", "Predicted Malicious"])
+
+        return {
+            "tn": tn,
+            "fp": fp,
+            "fn": fn,
+            "tp": tp,
+            "loaded": True,
+            "message": None,
+        }
+
+    except Exception as e:
+        return {
+            "tn": 22129,
+            "fp": 317,
+            "fn": 370,
+            "tp": 907,
+            "loaded": False,
+            "message": str(e),
+        }
+
+
+cm_values = load_confusion_matrix(CONFUSION_MATRIX_PATH)
+
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 
 cm_col, why_col = st.columns([2, 1], gap="large")
 
 with cm_col:
-    st.markdown('<h2 class="headline-lg" style="margin-bottom:20px;">Confusion Matrix Analysis</h2>', unsafe_allow_html=True)
-    st.markdown("""
+    st.markdown(
+        '<h2 class="headline-lg" style="text-align:center;margin-bottom:20px;">Confusion Matrix Analysis</h2>',
+        unsafe_allow_html=True,
+    )
+
+    if not cm_values["loaded"]:
+        st.warning(
+            "Could not load outputs/confusion_matrix.csv. Showing fallback values. "
+            f"Details: {cm_values['message']}"
+        )
+
+    st.markdown(f"""
     <div style="overflow-x:auto; border:1px solid #c6c6cd; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
       <table class="confusion">
         <thead>
@@ -772,13 +895,13 @@ with cm_col:
         <tbody>
           <tr>
             <td class="row-header">Actual Normal</td>
-            <td style="font-weight:700; color:#191c1e; font-family:'JetBrains Mono',monospace;">22,129 (TN)</td>
-            <td style="color:#515f74; font-family:'JetBrains Mono',monospace;">317 (FP)</td>
+            <td style="font-weight:700; color:#191c1e; font-family:'JetBrains Mono',monospace;">{cm_values["tn"]:,} (TN)</td>
+            <td style="color:#515f74; font-family:'JetBrains Mono',monospace;">{cm_values["fp"]:,} (FP)</td>
           </tr>
           <tr>
             <td class="row-header">Actual Malicious</td>
-            <td style="color:#515f74; font-family:'JetBrains Mono',monospace;">370 (FN)</td>
-            <td style="font-weight:700; color:#ba1a1a; font-family:'JetBrains Mono',monospace;">907 (TP)</td>
+            <td style="color:#515f74; font-family:'JetBrains Mono',monospace;">{cm_values["fn"]:,} (FN)</td>
+            <td style="font-weight:700; color:#ba1a1a; font-family:'JetBrains Mono',monospace;">{cm_values["tp"]:,} (TP)</td>
           </tr>
         </tbody>
       </table>
@@ -786,12 +909,19 @@ with cm_col:
     """, unsafe_allow_html=True)
 
 with why_col:
-    st.markdown("""
+    total = cm_values["tn"] + cm_values["fp"] + cm_values["fn"] + cm_values["tp"]
+    recall = cm_values["tp"] / (cm_values["tp"] + cm_values["fn"]) if (cm_values["tp"] + cm_values["fn"]) > 0 else 0
+    precision = cm_values["tp"] / (cm_values["tp"] + cm_values["fp"]) if (cm_values["tp"] + cm_values["fp"]) > 0 else 0
+    accuracy = (cm_values["tp"] + cm_values["tn"]) / total if total > 0 else 0
+    f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0
+
+    st.markdown(f"""
     <div class="info-box" style="margin-top:52px;">
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
         <span class="material-symbols-outlined" style="font-size:22px; color:#000;">info</span>
         <span class="title-md">Why Recall and F1-Score Matter</span>
       </div>
+
       <p class="body-md text-secondary" style="line-height:1.7; margin:0 0 12px 0;">
         In insider threat detection, recall is important because a false negative means malicious
         behaviour was missed. However, precision is also important because false positives may lead
@@ -799,13 +929,12 @@ with why_col:
         important for imbalanced insider threat data.
       </p>
       <ul style="margin:0; padding:0; list-style:none; font-family:'JetBrains Mono',monospace; font-size:12px; color:#000;">
-        <li style="margin-bottom:6px;">• Minimizes Unobserved Threats</li>
-        <li style="margin-bottom:6px;">• Optimizes Security Response</li>
+        <li style="margin-bottom:6px;">• Minimises Unobserved Threats</li>
+        <li style="margin-bottom:6px;">• Optimises Security Response</li>
         <li>• Validates Detection Sensitivity</li>
       </ul>
     </div>
     """, unsafe_allow_html=True)
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 7 — Explainability Framework
