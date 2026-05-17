@@ -33,6 +33,10 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# Initialize session state for navigation
+if "active_section" not in st.session_state:
+    st.session_state.active_section = "System Overview"
+
 # ── Load trained model ────────────────────────────────────────────────────
 @st.cache_resource
 def load_model():
@@ -261,16 +265,95 @@ table.confusion .row-header {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: #191c1e;
 }
+
+/* Smooth scrolling behavior for anchor links */
+html {
+    scroll-behavior: smooth;
+}
 </style>
+
+<script>
+// Initialize active state and set up observers
+function initNavigation() {
+    const sections = [
+        { id: 'section-overview', href: '#section-overview' },
+        { id: 'section-metrics', href: '#section-metrics' },
+        { id: 'section-explainability', href: '#section-explainability' }
+    ];
+    
+    // Set System Overview as initially active
+    const firstLink = document.querySelector(`a[href="#section-overview"]`);
+    if (firstLink) {
+        firstLink.classList.add('active');
+    }
+    
+    // Intersection Observer to update active on scroll
+    const observerOptions = { threshold: 0.3, rootMargin: '-100px 0px 0px 0px' };
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                // Remove active from all links
+                document.querySelectorAll('.topnav a').forEach(link => {
+                    link.classList.remove('active');
+                });
+                
+                // Add active to matching link
+                const link = document.querySelector(`a[href="#${entry.target.id}"]`);
+                if (link) {
+                    link.classList.add('active');
+                }
+            }
+        });
+    }, observerOptions);
+    
+    // Observe all sections
+    sections.forEach(section => {
+        const el = document.getElementById(section.id);
+        if (el) {
+            observer.observe(el);
+        }
+    });
+}
+
+// Handle clicks to update active state immediately
+document.addEventListener('click', function(e) {
+    if (e.target.tagName === 'A' && e.target.classList.contains('topnav') === false) {
+        const href = e.target.getAttribute('href');
+        if (href && href.startsWith('#')) {
+            document.querySelectorAll('.topnav a').forEach(link => {
+                link.classList.remove('active');
+            });
+            e.target.classList.add('active');
+        }
+    }
+}, true);
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNavigation);
+} else {
+    initNavigation();
+}
+
+// Also reinitialize on any dynamic updates (Streamlit reruns)
+const observer = new MutationObserver(function(mutations) {
+    const topnav = document.querySelector('.topnav');
+    if (topnav) {
+        initNavigation();
+    }
+});
+
+observer.observe(document.body, { subtree: true, childList: true });
+</script>
 """, unsafe_allow_html=True)
 
 # ── Top Nav ──────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="topnav">
   <div>
-    <a class="active" href="#">System Overview</a>
-    <a href="#">Metrics</a>
-    <a href="#">Evaluation</a>
+    <a href="#section-overview">System Overview</a>
+    <a href="#section-metrics">Metrics</a>
+    <a href="#section-explainability">Evaluation</a>
   </div>
   <span class="topnav-brand">COS720 Prototype</span>
 </div>
@@ -281,6 +364,7 @@ st.markdown("""
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 1 — Hero & Upload
 # ═══════════════════════════════════════════════════════════════════════════
+st.markdown('<div id="section-overview"></div>', unsafe_allow_html=True)
 
 # Button styling
 st.markdown("""
@@ -619,6 +703,7 @@ if (
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 2 — Model Summary
 # ═══════════════════════════════════════════════════════════════════════════
+st.markdown('<div id="section-metrics"></div>', unsafe_allow_html=True)
 
 CONFUSION_MATRIX_PATH = "outputs/confusion_matrix.csv"
 
@@ -939,6 +1024,7 @@ with why_col:
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 7 — Explainability Framework
 # ═══════════════════════════════════════════════════════════════════════════
+st.markdown('<div id="section-explainability"></div>', unsafe_allow_html=True)
 
 FEATURE_IMPORTANCE_PATH = "outputs/feature_importance.csv"
 
