@@ -1,3 +1,26 @@
+"""
+COS720: AI-Powered Insider Threat Detection System - Web Application
+
+This Streamlit application provides an interactive interface for the insider threat 
+detection model. Users can:
+- View system overview and model information
+- Upload CSV files with employee data for batch predictions
+- Input individual employee records for single predictions
+- Analyze model performance metrics and feature importance
+- Explore detailed threat classifications with confidence scores
+
+The application loads a pre-trained Random Forest classifier from models/insider_threat_model.pkl
+and uses it to classify employees as normal or threats based on 20 behavioral and demographic features.
+
+Main Features:
+- File upload and batch prediction
+- Single record prediction form
+- Real-time model inference
+- Confidence score visualization
+- Feature importance analysis
+- Model performance metrics
+"""
+
 import streamlit as st
 import pandas as pd
 import numpy as np
