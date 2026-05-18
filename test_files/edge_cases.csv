@@ -1,0 +1,6 @@
+employee_department,employee_campus,employee_position,employee_seniority_years,is_contractor,employee_classification,has_foreign_citizenship,has_criminal_record,has_medical_history,employee_origin_country,total_printed_pages,num_printed_pages_off_hours,total_files_burned,burned_from_other,is_abroad,trip_day_number,hostility_country_level,num_entries,num_unique_campus,entry_during_weekend
+IT,Main Campus,Engineer,0,0,Level 1,0,0,0,USA,0,0,0,0,0,0,1,5,1,0
+Finance,North Branch,Director,30,0,Level 5,0,0,1,USA,500,100,0,0,0,300,1,500,5,0
+Operations,South Campus,Contractor,1,1,Level 1,1,1,1,Afghanistan,1000,999,50,50,1,1,5,10,10,1
+Marketing,East Campus,Manager,15,0,Level 4,0,0,0,USA,600,0,0,0,0,200,1,400,1,0
+IT,Main Campus,Lead,12,0,Level 4,1,0,0,North Korea,200,200,50,50,1,1,5,100,5,1

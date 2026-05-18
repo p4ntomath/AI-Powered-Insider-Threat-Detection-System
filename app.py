@@ -28,7 +28,7 @@ EXPECTED_FEATURES = [
 ]
 
 st.set_page_config(
-    page_title="SENTINEL INTELLIGENCE | COS720 Insider Threat Prototype",
+    page_title="COS720 Insider Threat Prototype",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -518,12 +518,22 @@ with col_result:
                     else "Normal / Benign Behaviour"
                 )
 
-                risk_label = "HIGH RISK" if pred == 1 else "LOW RISK"
-                risk_color = "#ba1a1a" if pred == 1 else "#2d7d3d"
+                if pred == 1 and conf >= 0.80:
+                    risk_label = "HIGH RISK"
+                elif pred == 1:
+                    risk_label = "MEDIUM RISK"
+                else:
+                    risk_label = "LOW RISK"
 
-                bg_r = 255 if pred == 1 else 45
-                bg_g = 26 if pred == 1 else 125
-                bg_b = 26 if pred == 1 else 61
+                if risk_label == "HIGH RISK":
+                    risk_color = "#ba1a1a"
+                    bg_r, bg_g, bg_b = 186, 26, 26
+                elif risk_label == "MEDIUM RISK":
+                    risk_color = "#c2410c"
+                    bg_r, bg_g, bg_b = 194, 65, 12
+                else:
+                    risk_color = "#2d7d3d"
+                    bg_r, bg_g, bg_b = 45, 125, 61
 
                 explanation, key_indicators = get_record_explanation(
                     df_model.iloc[i], pred, conf

@@ -1,0 +1,7 @@
+employee_department,employee_campus,employee_position,employee_seniority_years,is_contractor,employee_classification,has_foreign_citizenship,has_criminal_record,has_medical_history,employee_origin_country,total_printed_pages,num_printed_pages_off_hours,total_files_burned,burned_from_other,is_abroad,trip_day_number,hostility_country_level,num_entries,num_unique_campus,entry_during_weekend
+IT,Main Campus,Software Engineer,5,0,Level 3,0,0,0,USA,45,2,0,0,0,120,1,85,2,0
+HR,North Branch,Manager,8,0,Level 4,0,0,1,USA,32,1,0,0,0,90,1,120,1,0
+Finance,South Campus,Analyst,3,1,Level 2,1,0,0,Canada,28,0,0,0,0,60,1,50,1,0
+Operations,Main Campus,Coordinator,2,0,Level 2,0,0,0,USA,15,1,0,0,0,45,1,200,3,0
+Marketing,East Campus,Specialist,6,0,Level 3,0,0,0,USA,55,3,0,0,0,150,1,95,2,0
+IT,Main Campus,Support,1,0,Level 1,0,0,0,USA,12,0,0,0,0,30,1,40,1,0
