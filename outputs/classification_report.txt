@@ -1,8 +1,0 @@
-                            precision    recall  f1-score   support
-
-             Normal/Benign       0.98      0.99      0.98     22446
-Malicious Insider Activity       0.74      0.71      0.73      1277
-
-                  accuracy                           0.97     23723
-                 macro avg       0.86      0.85      0.86     23723
-              weighted avg       0.97      0.97      0.97     23723

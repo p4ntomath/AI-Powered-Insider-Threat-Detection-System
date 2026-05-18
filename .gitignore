@@ -14,10 +14,6 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 
-# Model/data outputs
-outputs/
-*.pkl
-*.joblib
 
 
 # OS/editor
@@ -25,3 +21,7 @@ outputs/
 Thumbs.db
 .vscode/
 .idea/
+
+# Project outputs
+outputs/
+models/*.pkl
