@@ -1,7 +1,7 @@
 employee_department,employee_campus,employee_position,employee_seniority_years,is_contractor,employee_classification,has_foreign_citizenship,has_criminal_record,has_medical_history,employee_origin_country,total_printed_pages,num_printed_pages_off_hours,total_files_burned,burned_from_other,is_abroad,trip_day_number,hostility_country_level,num_entries,num_unique_campus,entry_during_weekend
-IT,Main Campus,Engineer,5,0,Level 3,0,0,0,USA,50,5,0,0,0,100,1,80,2,0
-Finance,North Branch,Analyst,10,0,Level 4,1,0,0,Mexico,150,80,10,5,1,10,2,120,3,1
-Operations,South Campus,Coordinator,3,1,Level 2,0,1,0,USA,35,2,2,1,0,50,1,60,2,0
-Marketing,East Campus,Manager,8,0,Level 4,0,0,1,USA,200,150,15,8,1,5,1,140,3,1
-HR,Main Campus,Specialist,2,0,Level 1,1,0,0,Canada,20,1,0,0,0,30,1,45,1,0
-IT,West Campus,Support,4,1,Level 2,0,0,0,USA,40,30,5,2,0,15,2,75,2,0
+IT,Main Campus,Engineer,5,0,3,0,0,0,USA,50,5,0,0,0,100,1,80,2,0
+Finance,North Branch,Analyst,10,0,4,1,0,0,Mexico,150,80,10,5,1,10,2,120,3,1
+Operations,South Campus,Coordinator,3,1,2,0,1,0,USA,35,2,2,1,0,50,1,60,2,0
+Marketing,East Campus,Manager,8,0,4,0,0,1,USA,200,150,15,8,1,5,1,140,3,1
+HR,Main Campus,Specialist,2,0,1,1,0,0,Canada,20,1,0,0,0,30,1,45,1,0
+IT,West Campus,Support,4,1,2,0,0,0,USA,40,30,5,2,0,15,2,75,2,0

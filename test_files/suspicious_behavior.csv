@@ -1,6 +1,6 @@
 employee_department,employee_campus,employee_position,employee_seniority_years,is_contractor,employee_classification,has_foreign_citizenship,has_criminal_record,has_medical_history,employee_origin_country,total_printed_pages,num_printed_pages_off_hours,total_files_burned,burned_from_other,is_abroad,trip_day_number,hostility_country_level,num_entries,num_unique_campus,entry_during_weekend
-IT,Main Campus,Software Engineer,10,0,Level 4,1,1,0,Russia,450,250,25,10,1,5,3,250,5,1
-Finance,North Branch,Analyst,12,0,Level 4,1,0,0,China,380,200,20,15,1,3,2,180,4,1
-Operations,South Campus,Manager,15,1,Level 3,0,1,1,India,420,180,30,20,1,7,2,220,5,1
-HR,Main Campus,Director,20,0,Level 5,1,1,0,Pakistan,500,350,40,25,1,2,3,300,6,1
-IT,East Campus,Developer,6,1,Level 2,1,0,0,Iran,320,280,35,30,0,1,4,150,4,1
+IT,Main Campus,Software Engineer,10,0,4,1,1,0,Russia,450,250,25,10,1,5,3,250,5,1
+Finance,North Branch,Analyst,12,0,4,1,0,0,China,380,200,20,15,1,3,2,180,4,1
+Operations,South Campus,Manager,15,1,3,0,1,1,India,420,180,30,20,1,7,2,220,5,1
+HR,Main Campus,Director,20,0,5,1,1,0,Pakistan,500,350,40,25,1,2,3,300,6,1
+IT,East Campus,Developer,6,1,2,1,0,0,Iran,320,280,35,30,0,1,4,150,4,1
