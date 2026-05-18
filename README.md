@@ -16,15 +16,23 @@ The project includes:
 ### Prerequisites
 - Python 3.8 or higher
 - pip package manager
+- Git
+
+### Clone the Repository
+
+1. Clone the project:
+   ```bash
+   git clone https://github.com/p4ntomath/AI-Powered-Insider-Threat-Detection-System.git
+   ```
+
+2. Navigate to the project directory:
+   ```bash
+   cd AI-Powered-Insider-Threat-Detection-System
+   ```
 
 ### Install Dependencies
 
-1. Navigate to the project directory:
-   ```bash
-   cd COS720-Project
-   ```
-
-2. Install required packages:
+Install required packages:
    ```bash
    pip install -r requirements.txt
    ```
@@ -156,17 +164,21 @@ COS720-Project/
 ## Quick Start
 
 ```bash
-# 1. Install dependencies
+# 1. Clone the repository
+git clone https://github.com/p4ntomath/AI-Powered-Insider-Threat-Detection-System.git
+cd AI-Powered-Insider-Threat-Detection-System
+
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# 2. Train the model (optional - model already trained)
+# 3. Train the model (optional - regenerates outputs)
 python train_model.py
 
-# 3. Run the app
+# 4. Run the app
 streamlit run app.py
 
-# 4. Open http://localhost:8501 in your browser
-# 5. Upload test files or input data to get predictions
+# 5. Open http://localhost:8501 in your browser
+# 6. Upload test files or input data to get predictions
 ```
 
 ## Model Performance
