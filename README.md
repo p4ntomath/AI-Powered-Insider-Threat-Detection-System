@@ -108,6 +108,28 @@ In the Streamlit app:
 
 Use the single record input form in the app to test individual predictions by entering values for each of the 20 required features.
 
+### Option 3: Run Automated Performance Tests
+
+Test the model's performance on all test files programmatically:
+
+```bash
+python test_model_performance.py
+```
+
+This script will:
+1. Load the trained model from `models/insider_threat_model.pkl`
+2. Test on all CSV files in `test_files/` directory
+3. Display detailed predictions for each record
+4. Show threat rate, confidence scores, and statistics
+5. Optionally test a single record with interactive input
+
+**Expected output:**
+- Total records tested
+- Normal (0) vs Threat (1) classification counts
+- Threat rate percentage
+- Individual predictions with confidence scores
+- Confidence statistics (mean, min, max)
+
 ### Required Input Features
 
 All test files must include these 20 columns:
@@ -142,6 +164,7 @@ The app automatically loads the model from `models/insider_threat_model.pkl` whe
 COS720-Project/
 ├── app.py                           # Streamlit web application
 ├── train_model.py                   # Model training script
+├── test_model_performance.py        # Model performance testing script
 ├── requirements.txt                 # Python dependencies
 ├── README.md                        # This file
 ├── data/
@@ -160,7 +183,9 @@ COS720-Project/
     ├── normal_behavior.csv
     ├── suspicious_behavior.csv
     ├── mixed_cases.csv
-    └── edge_cases.csv
+    ├── edge_cases.csv
+    ├── missing_fields.csv
+    └── missing_total_files_burned.csv
 ```
 
 ## Quick Start
@@ -176,11 +201,14 @@ pip install -r requirements.txt
 # 3. Train the model (optional - regenerates outputs)
 python train_model.py
 
-# 4. Run the app
+# 4. Test model performance on all test files
+python test_model_performance.py
+
+# 5. Run the web application
 streamlit run app.py
 
-# 5. Open http://localhost:8501 in your browser
-# 6. Upload test files or input data to get predictions
+# 6. Open http://localhost:8501 in your browser
+# 7. Upload test files or input data to get predictions
 ```
 
 ## Model Performance
