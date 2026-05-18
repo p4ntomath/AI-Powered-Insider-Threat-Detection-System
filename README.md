@@ -96,6 +96,8 @@ Test CSV files are provided in `test_files/` directory:
 - `suspicious_behavior.csv` - Employees exhibiting high-risk indicators
 - `mixed_cases.csv` - Mix of normal and suspicious patterns
 - `edge_cases.csv` - Boundary test cases with extreme values
+- `missing_fields.csv` - Records with missing values for testing data imputation
+- `missing_total_files_burned.csv` - Records with missing total_files_burned column
 
 In the Streamlit app:
 1. Navigate to the prediction section
